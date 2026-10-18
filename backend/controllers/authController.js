@@ -1,7 +1,7 @@
 import User from "../model/User.js";
 import Employee from "../model/Employee.js";
 import bcrypt from "bcryptjs";
-import { sendOtpEmail } from "../config/brevo.js";
+import { sendOtpEmail, sendResetOtpEmail } from "../config/brevo.js";
 import jwt from "jsonwebtoken";
 
 //to sign. up an admin
@@ -110,7 +110,7 @@ export const verifyOtp = async (req, res) => {
         message: "Email and Otp are required",
       });
     }
-    const user = await user.findOne({ email });
+    const user = await User.findOne({ email });
     if (!user) {
       return res.status(404).json({
         message: "user not found",
@@ -150,3 +150,82 @@ export const verifyOtp = async (req, res) => {
 };
 
 //to resend the otp
+export const resendOtp = async (req,res) => {
+  try {
+    const {email} = req.body;
+    if(!email) {
+      return res.status(400).json({
+        message: "Email is required"
+      })
+    }
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        message: "user not found",
+      });
+    }
+    if (user.isVerified) {
+        return res.status(400),json({
+            message: "Email is already verified"
+        })
+    }
+    ///to regenerate 6 digit otp
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = new Date(Date.now() + 15 * 60 * 1000); //15 mins
+
+    user.verificationOtp = otp;
+    user.verificationOtpExpires = otpExpires;
+
+    await user.save();
+    sendOtpEmail(email, otp, user.name).catch(err => console.error("Error resending the OTP email", err))
+    res.status(200).json({
+      message: "A new OTP has been sent to your email."
+    });
+
+   } catch (err) {
+    console.log("Resend OTP Error:", err);
+    res.status(500).json({
+      message: "Server Error",
+    });
+  }
+}
+
+//to logout password
+
+export const  forgotPassword = async (req,res) => {
+  try {
+    const {email} = req.body;
+        if(!email) {
+      return res.status(400).json({
+        message: "Email is required"
+      })
+    }
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        message: "user not found",
+      });
+    }
+     ///to regenerate 6 digit otp
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = new Date(Date.now() + 15 * 60 * 1000); //15 mins
+
+    user.resetPasswordOtp = otp;
+    user.resetPasswordOtpExpires = otpExpires,
+    await user.save()
+
+    sendResetOtpEmail(email, otp, user.name).catch(err => console.error("Error sending reset password OTP email", otp))
+
+    res.status(200).json({
+      message: "Password reset OtTP sent succesfully to your email"
+    })
+  
+   } 
+   catch (err) {
+    console.log("fogot password Error:", err);
+    res.status(500).json({
+      message: "Server Error",
+    });
+  
+} 
+}
