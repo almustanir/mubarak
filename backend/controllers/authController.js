@@ -1,6 +1,6 @@
 import User from "../model/User.js";
 import Employee from "../model/Employee.js";
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 import { sendOtpEmail, sendResetOtpEmail } from "../config/brevo.js";
 import jwt from "jsonwebtoken";
 
@@ -87,7 +87,7 @@ export const login = async (res, req) => {
 
     const employee = await Employee.findOne({ workEmail: user.email });
     res.status(200).json({
-      messaage: "Login successfullly",
+      message: "Login successfully",
       token,
       role: user.role,
       name: user.name,
@@ -217,15 +217,60 @@ export const  forgotPassword = async (req,res) => {
     sendResetOtpEmail(email, otp, user.name).catch(err => console.error("Error sending reset password OTP email", otp))
 
     res.status(200).json({
-      message: "Password reset OtTP sent succesfully to your email"
+      message: "Password reset OtTP sent successfully to your email"
     })
   
    } 
    catch (err) {
-    console.log("fogot password Error:", err);
+    console.log("forgot password Error:", err);
     res.status(500).json({
       message: "Server Error",
     });
   
 } 
 }
+
+//to reset  the password
+export const resetPassword = async (req,res) => {
+  try {
+    const {email, otp, newPassword} = req.body;
+    if(!email || !otp || !newPassword) {
+      return res.status(400).json({
+        message: "Email, OTP and new password are required."
+      });
+    }
+      const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        message: "user not found",
+      });
+    }
+    if(user.resetPasswordOtp !== otp) {
+      return res.status(400).json({
+        message: "Invalid OTP"
+      })
+    }
+    if(new Date() > user.resetPasswordOtpExpires){
+      return  res.status(400).json({
+        message:"OTP code has expired. Please request a new one."
+      })
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    user.resetPasswordOtp = null;
+    user.resetPasswordOtpExpires = null;
+
+    await user.save();
+    res.status(200).json ({
+      message: "Password has been reset successfully! you can  now log in."
+    });
+  } 
+   catch (err) {
+    console.log("Reset password Error:", err);
+    res.status(500).json({
+      message: "Server Error",
+    });
+  
+} 
+} 
