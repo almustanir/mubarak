@@ -38,7 +38,7 @@ export const signupAdmin = async (req, res) => {
       .catch((err) =>
         console.error("Error sending admin verification OTP email:", err),
       )
-      .res.status(201)
+      res.status(201)
       .json({
         message:
           "Admin already registered successfully. pls verify your email.",
@@ -54,9 +54,13 @@ export const signupAdmin = async (req, res) => {
 
 //to login
 
-export const login = async (res, req) => {
+export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
+
+    return res.status(200).json({
+      message: "Login successfully"
+    })
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({
@@ -274,3 +278,4 @@ export const resetPassword = async (req,res) => {
   
 } 
 } 
+
